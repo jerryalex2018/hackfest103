@@ -72,3 +72,13 @@ body {
     animation: none;
   }
 }
+
+/* Larger tap targets on touch screens */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select,
+  button {
+    min-height: 44px;
+  }
+}

@@ -25,12 +25,12 @@ export default function Navbar() {
           Degradation<span className="text-brand-blue">Watch</span>
         </Link>
 
-        <ul className="flex flex-wrap items-center gap-1 text-sm font-medium">
+        <ul className="order-3 flex w-full gap-1 overflow-x-auto text-sm font-medium [scrollbar-width:none] md:order-none md:w-auto md:overflow-visible">
           {links.map((link) => (
-            <li key={link.href}>
+            <li key={link.href} className="shrink-0">
               <Link
                 href={link.href}
-                className={`rounded-full px-3 py-1.5 transition-colors ${
+                className={`block whitespace-nowrap rounded-full px-3 py-2 transition-colors ${
                   isActive(link.href)
                     ? "bg-brand-green text-brand-white"
                     : "text-slate-700 hover:bg-brand-blue/10 hover:text-brand-blue"
@@ -45,13 +45,13 @@ export default function Navbar() {
         <div className="flex items-center gap-2 text-sm font-medium">
           <Link
             href="/login"
-            className="px-3 py-1.5 text-brand-blue hover:underline"
+            className="px-3 py-2 text-brand-blue hover:underline"
           >
             Log in
           </Link>
           <Link
             href="/register"
-            className="rounded-full bg-brand-blue px-4 py-1.5 text-brand-white transition-opacity hover:opacity-90"
+            className="rounded-full bg-brand-blue px-4 py-2 text-brand-white transition-opacity hover:opacity-90"
           >
             Sign up
           </Link>

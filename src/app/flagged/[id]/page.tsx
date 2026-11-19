@@ -1,14 +1,23 @@
-export default async function FlaggedDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+import { Suspense } from "react";
+import FlaggedDetailView from "@/components/FlaggedDetailView";
 
+type Params = Promise<{ id: string }>;
+
+async function DetailContent({ params }: { params: Params }) {
+  const { id } = await params;
+  return <FlaggedDetailView id={id} />;
+}
+
+export default function FlaggedDetailPage({ params }: { params: Params }) {
   return (
-    <section className="mx-auto max-w-5xl px-4 py-12 animate-fade-in">
-      <h1 className="text-3xl font-bold text-brand-green">Location #{id}</h1>
-      <p className="mt-2 text-slate-600">Coming soon.</p>
-    </section>
+    <Suspense
+      fallback={
+        <section className="mx-auto max-w-6xl px-4 py-10">
+          <p className="animate-pulse text-slate-500">Loading location...</p>
+        </section>
+      }
+    >
+      <DetailContent params={params} />
+    </Suspense>
   );
 }
