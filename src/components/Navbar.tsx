@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
+import logo from "../app/logo.jpeg"; // 👈 Importing the image from the app folder
 
 const links = [
   { href: "/", label: "Home" },
@@ -21,8 +23,17 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-brand-green/20 bg-brand-white/95 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <Link href="/" className="text-lg font-bold text-brand-green">
-          Degradation<span className="text-brand-blue">Watch</span>
+        
+        {/* Logo Section */}
+        <Link href="/" className="flex items-center">
+          <Image
+            src={logo}
+            alt="Silent Signals Logo"
+            width={200} 
+            height={100} 
+            className="h-10 w-auto object-contain md:h-12"
+            priority
+          />
         </Link>
 
         <ul className="order-3 flex w-full gap-1 overflow-x-auto text-sm font-medium [scrollbar-width:none] md:order-none md:w-auto md:overflow-visible">
