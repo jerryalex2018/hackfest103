@@ -1,4 +1,4 @@
-import type { Location, Report } from "./types";
+import type { Location, Report,Authority,Stats } from "./types";
 
 export const mockReports: Report[] = [
   {
@@ -63,5 +63,31 @@ export const mockLocations: Location[] = [
     report_count: 1,
     flagged_at: null,
     created_at: "2026-11-18T16:45:00Z",
+  },
+];
+
+export const mockStats: Stats = {
+  total_reports: 142,
+  total_locations: 38,
+  flagged_locations: 4,
+  reporters: 67,
+  reports_today: 9,
+  emails_sent: 8,
+};
+
+export const mockAuthorities: Authority[] = [
+  {
+    id: 1,
+    name: "Machakos County Environment Office",
+    email: "env@machakos.example",
+    region: "Machakos",
+    notified_count: 5,
+  },
+  {
+    id: 2,
+    name: "Machakos Town Public Works",
+    email: "works@machakos.example",
+    region: "Machakos Town",
+    notified_count: 3,
   },
 ];

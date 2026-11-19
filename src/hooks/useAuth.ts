@@ -18,15 +18,22 @@ export function useAuth() {
     setLoading(true);
     setError(null);
     try {
+      const email = (body as { email: string }).email;
+
       const data: AuthResponse = USE_MOCKS
         ? {
             token: "mock-token",
-            user: { id: 1, name, email: (body as { email: string }).email },
+            user: {
+              id: 1,
+              name,
+              email,
+              role: email.startsWith("admin") ? "admin" : "user",
+            },
           }
         : await apiPost<AuthResponse>(path, body);
 
       saveSession(data.token, data.user);
-      router.push("/report");
+      router.push(data.user.role === "admin" ? "/admin" : "/report");
     } catch (e) {
       setError((e as Error).message);
     } finally {
