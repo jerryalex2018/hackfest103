@@ -33,3 +33,12 @@ export async function apiPost<T>(
   });
   return handle<T>(res);
 }
+
+export async function apiPatch<T>(path: string, body: object): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", ...authHeader() },
+    body: JSON.stringify(body),
+  });
+  return handle<T>(res);
+}
