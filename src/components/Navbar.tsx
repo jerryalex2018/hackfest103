@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { CircleUser, Menu, X } from "lucide-react";
 import { getUser } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import type { User } from "@/lib/types";
@@ -16,7 +17,6 @@ const links = [
   { href: "/tracking", label: "GPS Patrol", badge: "Live", pulse: true },
   { href: "/recent", label: "Recent" },
   { href: "/flagged", label: "Flagged" },
-  { href: "/admin", label: "Admin Ops", badge: "New" },
   { href: "/about", label: "About" },
 ];
 
@@ -24,6 +24,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const { logout } = useAuth();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setCurrentUser(getUser());
@@ -32,13 +33,19 @@ export default function Navbar() {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
+  const close = () => setOpen(false);
+
+  const handleLogout = () => {
+    close();
+    logout();
+  };
+
   return (
-    <header className="sticky top-0 z-50 border-b border-brand-green/20 bg-brand-white/90 shadow-sm backdrop-blur-md transition-all duration-300">
-      <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5">
-        
-        {/* Logo Section with Hover Scale & Brand Name */}
-        <Link 
-          href="/" 
+    <header className="sticky top-0 z-50 border-b border-brand-green/20 bg-brand-white/90 shadow-sm backdrop-blur-md">
+      <nav className="page-container flex items-center justify-between gap-3 py-2.5">
+        <Link
+          href="/"
+          onClick={close}
           className="group flex items-center gap-2.5 outline-none transition-transform duration-300 hover:scale-105 active:scale-95"
         >
           <Image
@@ -49,70 +56,58 @@ export default function Navbar() {
             className="h-9 w-auto rounded object-contain md:h-11"
             priority
           />
-          {/* Website Name */}
           <span className="hidden text-xl font-extrabold tracking-tight text-brand-green sm:block md:text-2xl">
             Silent<span className="text-brand-blue">Signals</span>
           </span>
         </Link>
 
-        {/* Navigation Links Container */}
-        <div className="relative order-3 w-full md:order-none md:w-auto">
-          {/* Gradient fade on mobile edges to indicate scrolling */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-brand-white to-transparent md:hidden" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-brand-white to-transparent md:hidden" />
+        <ul className="hidden items-center gap-1 text-sm font-medium md:flex">
+          {links.map((link) => {
+            const active = isActive(link.href);
+            return (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className={`group inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 transition-all duration-300 ${
+                    active
+                      ? "bg-brand-green text-brand-white shadow-sm"
+                      : "text-slate-700 hover:-translate-y-0.5 hover:bg-brand-blue/10 hover:text-brand-blue"
+                  }`}
+                >
+                  <span>{link.label}</span>
+                  {link.badge && (
+                    <span
+                      className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                        active
+                          ? "bg-white text-brand-green"
+                          : "bg-brand-blue/15 text-brand-blue group-hover:bg-brand-blue group-hover:text-white"
+                      }`}
+                    >
+                      {link.pulse && (
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-blue opacity-75 group-hover:bg-white" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-blue group-hover:bg-white" />
+                        </span>
+                      )}
+                      {link.badge}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
 
-          <ul className="flex w-full gap-1 overflow-x-auto px-2 text-sm font-medium [scrollbar-width:none] md:w-auto md:overflow-visible md:px-0">
-            {links.map((link) => {
-              const active = isActive(link.href);
-              return (
-                <li key={link.href} className="shrink-0">
-                  <Link
-                    href={link.href}
-                    className={`group relative inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 transition-all duration-300 ${
-                      active
-                        ? "bg-brand-green text-brand-white shadow-sm"
-                        : "text-slate-700 hover:-translate-y-0.5 hover:bg-brand-blue/10 hover:text-brand-blue"
-                    }`}
-                  >
-                    <span>{link.label}</span>
-                    
-                    {/* Animated Badge */}
-                    {link.badge && (
-                      <span
-                        className={`relative flex items-center gap-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wide transition-colors ${
-                          active
-                            ? "bg-white text-brand-green"
-                            : "bg-brand-blue/15 text-brand-blue group-hover:bg-brand-blue group-hover:text-white"
-                        }`}
-                      >
-                        {/* Pulsing dot for "Live" badges */}
-                        {link.pulse && (
-                          <span className="relative flex h-1.5 w-1.5">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-blue opacity-75 group-hover:bg-white"></span>
-                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-blue group-hover:bg-white"></span>
-                          </span>
-                        )}
-                        {link.badge}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-
-
-        {/* Auth Section */}
-        <div className="flex items-center gap-2 text-sm font-medium">
+        <div className="hidden items-center gap-2 text-sm font-medium md:flex">
           {currentUser ? (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800">
-                <span>👤</span>
-                <span className="truncate max-w-[120px]">{currentUser.name}</span>
+            <>
+              <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-800">
+                <CircleUser className="h-4 w-4 text-brand-blue" aria-hidden />
+                <span className="max-w-[120px] truncate">
+                  {currentUser.name}
+                </span>
                 {currentUser.role === "admin" && (
-                  <span className="rounded-full bg-brand-green/20 text-brand-green px-1.5 py-0.2 text-[9px] font-extrabold uppercase">
+                  <span className="rounded-full bg-brand-green/20 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-brand-green">
                     Admin
                   </span>
                 )}
@@ -120,11 +115,11 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 transition"
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600"
               >
                 Log out
               </button>
-            </div>
+            </>
           ) : (
             <>
               <Link
@@ -135,15 +130,108 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/register"
-                className="rounded-full bg-brand-blue px-4 py-2 text-brand-white transition-opacity hover:opacity-90 shadow-2xs"
+                className="rounded-full bg-brand-blue px-4 py-2 text-brand-white shadow-sm transition-opacity hover:opacity-90"
               >
                 Sign up
               </Link>
             </>
           )}
-
         </div>
+
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls="mobile-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 hover:bg-brand-blue/10 md:hidden"
+        >
+          {open ? (
+            <X className="h-6 w-6" aria-hidden />
+          ) : (
+            <Menu className="h-6 w-6" aria-hidden />
+          )}
+        </button>
       </nav>
+
+      {open && (
+        <div
+          id="mobile-menu"
+          className="border-t border-brand-green/20 bg-brand-white md:hidden"
+        >
+          <ul className="page-container flex flex-col gap-1 py-4 text-base font-medium">
+            {links.map((link) => {
+              const active = isActive(link.href);
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    onClick={close}
+                    className={`flex items-center justify-between rounded-xl px-4 py-3 transition-colors ${
+                      active
+                        ? "bg-brand-green text-brand-white"
+                        : "text-slate-700 hover:bg-brand-blue/10 hover:text-brand-blue"
+                    }`}
+                  >
+                    <span>{link.label}</span>
+                    {link.badge && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          active
+                            ? "bg-white text-brand-green"
+                            : "bg-brand-blue/15 text-brand-blue"
+                        }`}
+                      >
+                        {link.badge}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="page-container border-t border-slate-200 py-4">
+            {currentUser ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  <CircleUser className="h-5 w-5 text-brand-blue" aria-hidden />
+                  <span className="truncate">{currentUser.name}</span>
+                  {currentUser.role === "admin" && (
+                    <span className="rounded-full bg-brand-green/20 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-brand-green">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600"
+                >
+                  Log out
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Link
+                  href="/login"
+                  onClick={close}
+                  className="rounded-full border border-brand-blue px-4 py-3 text-center font-semibold text-brand-blue"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={close}
+                  className="rounded-full bg-brand-blue px-4 py-3 text-center font-semibold text-brand-white"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, Camera, Flag, Users, MapPin } from "lucide-react";
+import FaqSection from "@/components/FaqSection";
+import FlagJourney from "@/components/FlagJourney";
 import FlaggedBadge from "@/components/FlaggedBadge";
 import HeroSection from "@/components/HeroSection";
 import HowItWorks from "@/components/HowItWorks";
+import IssueTypes from "@/components/IssueTypes";
 import PhotoCard from "@/components/PhotoCard";
 import StatsStrip from "@/components/StatsStrip";
 import { useFlaggedLocations } from "@/hooks/useFlaggedLocations";
@@ -33,7 +37,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-16 px-4 py-10">
+    <div className="page-container space-y-20 py-10">
       <HeroSection />
 
       {stats && (
@@ -43,27 +47,32 @@ export default function HomePage() {
               label: "Reports filed",
               value: stats.total_reports,
               hint: "All time",
+              icon: Camera,
             },
             {
               label: "Spots pinned",
               value: stats.total_locations,
               hint: "Unique locations",
+              icon: MapPin,
             },
             {
               label: "Spots flagged",
               value: stats.flagged_locations,
               hint: "Sent to authorities",
+              icon: Flag,
             },
             {
               label: "Community members",
               value: stats.reporters,
               hint: "People who reported",
+              icon: Users,
             },
           ]}
         />
       )}
 
       <HowItWorks />
+      <IssueTypes />
 
       <section className="space-y-6">
         <div className="flex items-end justify-between gap-4">
@@ -77,9 +86,9 @@ export default function HomePage() {
           </div>
           <Link
             href="/recent"
-            className="text-sm font-semibold text-brand-blue hover:underline"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-brand-blue hover:underline"
           >
-            See all →
+            See all <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
 
@@ -140,9 +149,9 @@ export default function HomePage() {
             </div>
             <Link
               href="/flagged"
-              className="text-sm font-semibold text-brand-blue hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-brand-blue hover:underline"
             >
-              All flagged →
+              All flagged <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -167,7 +176,10 @@ export default function HomePage() {
         </section>
       )}
 
-      <section className="animate-fade-in rounded-3xl bg-gradient-to-br from-brand-green to-brand-blue p-10 text-center text-brand-white shadow-lg">
+      <FlagJourney />
+      <FaqSection />
+
+      <section className="animate-fade-in rounded-3xl bg-gradient-to-br from-brand-green to-brand-blue p-10 text-center text-brand-white shadow-lg sm:p-16">
         <h2 className="text-2xl font-bold sm:text-3xl">
           Spotted something that needs attention?
         </h2>
@@ -177,9 +189,9 @@ export default function HomePage() {
         </p>
         <Link
           href="/report"
-          className="mt-8 inline-block rounded-full bg-brand-white px-8 py-3 font-semibold text-brand-green transition-transform hover:scale-105"
+          className="mt-8 inline-flex items-center gap-2 rounded-full bg-brand-white px-8 py-3 font-semibold text-brand-green transition-transform hover:scale-105"
         >
-          Report a spot now
+          Report a spot now <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </section>
     </div>
