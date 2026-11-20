@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { apiPost } from "@/lib/api";
 import { USE_MOCKS } from "@/lib/config";
+import { insertReportToSupabase } from "@/lib/supabase";
 import type { Location, Report } from "@/lib/types";
 
 type UploadResponse = { report: Report; location: Location };
@@ -41,11 +41,17 @@ export function useUploadReport() {
           },
         });
       } else {
-        const data = await apiPost<UploadResponse>("/reports", form);
-        setResult(data);
+        // Direct Supabase insert
+        const sbResult = await insertReportToSupabase(form);
+        if (sbResult) {
+          setResult(sbResult);
+          return;
+        }
+        throw new Error("Could not connect to Supabase database. Please try again.");
       }
     } catch (e) {
-      setError((e as Error).message);
+      console.error("Submission error:", e);
+      setError((e as Error).message || "An unexpected error occurred while reporting.");
     } finally {
       setSubmitting(false);
     }

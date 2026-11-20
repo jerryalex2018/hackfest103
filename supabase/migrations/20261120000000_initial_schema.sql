@@ -125,13 +125,11 @@ DECLARE
     distinct_users INTEGER;
     total_reps INTEGER;
 BEGIN
-    -- Calculate distinct reporters and total reports for the location
     SELECT COUNT(DISTINCT reporter_name), COUNT(*)
     INTO distinct_users, total_reps
     FROM public.reports
     WHERE location_id = NEW.location_id;
 
-    -- Update location statistics
     UPDATE public.locations
     SET 
         unique_reporters = distinct_users,
@@ -156,6 +154,43 @@ CREATE TRIGGER trigger_report_flagging
 AFTER INSERT ON public.reports
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_report_flagging();
+
+-- ============================================================
+-- PERMISSIONS & ROW LEVEL SECURITY (RLS)
+-- ============================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
+ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.authorities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.patrol_tracks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mpesa_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read locations" ON public.locations FOR SELECT USING (true);
+CREATE POLICY "Allow public insert locations" ON public.locations FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update locations" ON public.locations FOR UPDATE USING (true);
+
+CREATE POLICY "Allow public read reports" ON public.reports FOR SELECT USING (true);
+CREATE POLICY "Allow public insert reports" ON public.reports FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow public read authorities" ON public.authorities FOR SELECT USING (true);
+
+CREATE POLICY "Allow public read patrol_tracks" ON public.patrol_tracks FOR SELECT USING (true);
+CREATE POLICY "Allow public insert patrol_tracks" ON public.patrol_tracks FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow public read mpesa_transactions" ON public.mpesa_transactions FOR SELECT USING (true);
+CREATE POLICY "Allow public insert mpesa_transactions" ON public.mpesa_transactions FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow public read profiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Allow public insert profiles" ON public.profiles FOR INSERT WITH CHECK (true);
 
 -- ============================================================
 -- SEED DATA FOR DEMO & HACKATHON

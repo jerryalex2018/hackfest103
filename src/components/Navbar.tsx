@@ -1,8 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { getUser } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
+import type { User } from "@/lib/types";
 import logo from "../app/logo.jpeg";
 
 const links = [
@@ -18,6 +22,12 @@ const links = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { logout } = useAuth();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    setCurrentUser(getUser());
+  }, [pathname]);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -92,23 +102,46 @@ export default function Navbar() {
           </ul>
         </div>
 
-        {/* Auth Buttons */}
+
+
+        {/* Auth Section */}
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Link
-            href="/login"
-            className="relative px-3 py-2 text-brand-blue transition-colors hover:text-brand-green"
-          >
-            Log in
-            {/* Animated Underline */}
-            <span className="absolute bottom-1 left-3 right-3 h-0.5 origin-left scale-x-0 rounded-full bg-brand-green transition-transform duration-300 hover:scale-x-100" />
-          </Link>
-          
-          <Link
-            href="/register"
-            className="rounded-full bg-brand-blue px-4 py-2 text-brand-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-brand-blue-dark hover:shadow-md active:translate-y-0 active:shadow-sm"
-          >
-            Sign up
-          </Link>
+          {currentUser ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800">
+                <span>👤</span>
+                <span className="truncate max-w-[120px]">{currentUser.name}</span>
+                {currentUser.role === "admin" && (
+                  <span className="rounded-full bg-brand-green/20 text-brand-green px-1.5 py-0.2 text-[9px] font-extrabold uppercase">
+                    Admin
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 transition"
+              >
+                Log out
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="px-3 py-2 text-brand-blue hover:underline"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="rounded-full bg-brand-blue px-4 py-2 text-brand-white transition-opacity hover:opacity-90 shadow-2xs"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
+
         </div>
       </nav>
     </header>

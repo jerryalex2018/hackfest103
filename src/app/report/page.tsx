@@ -7,6 +7,7 @@ import LocationPicker from "@/components/LocationPicker";
 import PhotoUploader from "@/components/PhotoUploader";
 import { useUploadReport } from "@/hooks/useUploadReport";
 import { getUser } from "@/lib/auth";
+import { fileToBase64Optimized } from "@/lib/supabase";
 import type { User } from "@/lib/types";
 
 type Coords = { latitude: number; longitude: number };
@@ -58,6 +59,21 @@ const SEVERITY_OPTIONS: {
   },
 ];
 
+interface AiTriageData {
+  category: string;
+  severity: "low" | "medium" | "high" | "critical";
+  hazardScore: number;
+  description: string;
+  recommendedAction: string;
+}
+
+const SEVERITY_COLORS: Record<AiTriageData["severity"], string> = {
+  low: "bg-blue-100 text-blue-800 border-blue-200",
+  medium: "bg-amber-100 text-amber-800 border-amber-200",
+  high: "bg-orange-100 text-orange-800 border-orange-200",
+  critical: "bg-red-100 text-red-800 border-red-200",
+};
+
 export default function ReportPage() {
   const router = useRouter();
   const { submit, submitting, error, result } = useUploadReport();
@@ -78,8 +94,39 @@ export default function ReportPage() {
 
   const maxDate = new Date().toISOString().slice(0, 10);
 
-  // Stable callbacks: LocationPicker re-runs its effect when these change
-  const handlePhoto = useCallback((file: File | null) => setPhoto(file), []);
+  // AI triage state
+  const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
+  const [aiTriage, setAiTriage] = useState<AiTriageData | null>(null);
+
+  // Stable callback for PhotoUploader. Also kicks off background Gemini triage.
+  const handlePhoto = useCallback(async (file: File | null) => {
+    setPhoto(file);
+    if (!file) {
+      setAiTriage(null);
+      return;
+    }
+
+    setIsAnalyzingAi(true);
+    try {
+      const base64 = await fileToBase64Optimized(file);
+      const res = await fetch("/api/ai/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: base64 }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.analysis) {
+          setAiTriage(data.analysis);
+        }
+      }
+    } catch (err) {
+      console.warn("AI Triage background error:", err);
+    } finally {
+      setIsAnalyzingAi(false);
+    }
+  }, []);
+
   const handleCoords = useCallback((c: Coords | null) => setCoords(c), []);
 
   // Redirect to login if nobody is signed in
@@ -126,6 +173,13 @@ export default function ReportPage() {
     form.append("anonymous", String(anonymous));
     if (description.trim()) form.append("description", description.trim());
     if (landmark.trim()) form.append("landmark", landmark.trim());
+
+    // Pass Gemini AI Triage fields
+    if (aiTriage) {
+      form.append("category", aiTriage.category);
+      form.append("severity", aiTriage.severity);
+      form.append("ai_analysis", JSON.stringify(aiTriage));
+    }
 
     await submit(form);
   }
@@ -189,6 +243,33 @@ export default function ReportPage() {
               </div>
             </div>
 
+            {/* Gemini AI Triage summary */}
+            {aiTriage && (
+              <div className="rounded-2xl border border-teal-200 bg-teal-50/80 p-4 space-y-2 text-sm text-teal-900">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-teal-700">
+                    🤖 Gemini Vision Triage
+                  </span>
+                  <span
+                    className={`rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase ${
+                      SEVERITY_COLORS[aiTriage.severity] || SEVERITY_COLORS.medium
+                    }`}
+                  >
+                    {aiTriage.severity} · {aiTriage.hazardScore}/10
+                  </span>
+                </div>
+                <p className="font-semibold text-slate-800">{aiTriage.category}</p>
+                <p className="text-xs text-slate-600">{aiTriage.description}</p>
+                <p className="text-xs text-slate-600">
+                  <span className="font-semibold">Recommended: </span>
+                  {aiTriage.recommendedAction}
+                </p>
+                <p className="text-[11px] font-medium text-teal-700">
+                  ⏱️ 48-Hour municipal response SLA has been activated.
+                </p>
+              </div>
+            )}
+
             <dl className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observed on</dt>
@@ -234,6 +315,7 @@ export default function ReportPage() {
                   setLandmark("");
                   setAnonymous(false);
                   setObservedAt(new Date().toISOString().slice(0, 10));
+                  setAiTriage(null);
                   // Force a reload to clear the hook's result state
                   window.location.reload();
                 }}
@@ -241,6 +323,15 @@ export default function ReportPage() {
               >
                 Report another spot
               </button>
+            </div>
+
+            <div className="text-center">
+              <Link
+                href="/recent"
+                className="text-sm font-medium text-brand-blue hover:underline"
+              >
+                See recent reports →
+              </Link>
             </div>
           </div>
         </div>
@@ -266,13 +357,54 @@ export default function ReportPage() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Step 1: Photo */}
+          {/* Step 1: Photo + AI triage */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-green text-xs font-bold text-white">1</span>
               <h2 className="text-lg font-semibold text-slate-800">Upload a Photo</h2>
             </div>
             <PhotoUploader onChange={handlePhoto} />
+
+            {/* Live AI scanning indicator */}
+            {isAnalyzingAi && (
+              <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50/80 p-4 text-sm text-teal-800 animate-pulse">
+                <span className="text-xl">✨</span>
+                <div>
+                  <p className="font-bold">Gemini Vision is scanning...</p>
+                  <p className="text-xs text-teal-600">
+                    Auto-classifying the issue and environmental hazard level.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* AI triage result card */}
+            {aiTriage && !isAnalyzingAi && (
+              <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+                    ✨ Gemini AI Live Triage
+                  </span>
+                  <span
+                    className={`rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase ${
+                      SEVERITY_COLORS[aiTriage.severity] || SEVERITY_COLORS.medium
+                    }`}
+                  >
+                    {aiTriage.severity} (Hazard: {aiTriage.hazardScore}/10)
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-slate-800">{aiTriage.category}</p>
+                <p className="text-xs text-slate-600">{aiTriage.description}</p>
+                <div className="rounded-xl bg-slate-50 p-2.5 text-xs text-slate-600">
+                  <span className="font-semibold text-slate-700">Recommended Action: </span>
+                  {aiTriage.recommendedAction}
+                </div>
+                <p className="text-[11px] font-medium text-teal-700">
+                  ⏱️ 48-Hour municipal response SLA will be activated upon posting.
+                </p>
+              </div>
+            )}
+
             <div className="rounded-xl bg-brand-blue/5 p-4 text-sm text-brand-blue flex gap-3">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
               <p><strong>Tip:</strong> Make sure the problem is clearly visible and well-lit. Avoid taking photos from too far away.</p>

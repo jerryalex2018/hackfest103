@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { verifyCleanupWithGemini } from "@/lib/gemini";
 import { initiateMpesaStkPush } from "@/lib/mpesa";
+import { updateLocationStatusInSupabase } from "@/lib/supabase";
 
 export const runtime = "edge";
 
@@ -15,56 +17,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
     const amount = Number(bountyAmount) || 500;
 
-    let aiResult = {
-      cleanupScore: 94,
-      verified: true,
-      wasteReductionPercentage: "95%",
-      analysis:
-        "The post-cleanup photo confirms that the surface refuse and uncollected solid waste piles have been thoroughly evacuated. Drainage inlets are unobstructed and ground condition is cleared.",
-      inspectorNotes: "Automated AI Environmental Audit: Approved for Civic Cleanup Bounty.",
-    };
+    // Run Gemini Vision Multimodal Cleanup Verification
+    const aiResult = await verifyCleanupWithGemini(
+      beforeImageUrl || "/images/sample-1.jpg",
+      afterImageUrl
+    );
 
-    if (apiKey) {
+    // If verified by AI, mark location as resolved in Supabase
+    let locationUpdated = false;
+    if (aiResult.verified && locationId) {
       try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-        const promptText = `
-You are an expert environmental sanitation auditor comparing a "Before" degradation photo and an "After" cleanup photo.
-Before image: ${beforeImageUrl || "Initial reported site waste"}
-After image: ${afterImageUrl}
-
-Verify if the public space was successfully cleaned and restored.
-Respond in strict JSON:
-{
-  "cleanupScore": integer 0 to 100,
-  "verified": boolean,
-  "wasteReductionPercentage": "e.g., 95%",
-  "analysis": "2 sentence explanation comparing before and after",
-  "inspectorNotes": "Verdict note"
-}
-`;
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: promptText }] }],
-            generationConfig: { responseMimeType: "application/json" },
-          }),
-        });
-
-        if (res.ok) {
-          const geminiData = await res.json();
-          const parsed = JSON.parse(
-            geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
-          );
-          if (parsed.cleanupScore !== undefined) {
-            aiResult = parsed;
-          }
-        }
-      } catch (err) {
-        console.warn("Gemini verification fallback used:", err);
+        locationUpdated = await updateLocationStatusInSupabase(Number(locationId), "resolved");
+      } catch (dbErr) {
+        console.warn("Could not auto-resolve location in DB:", dbErr);
       }
     }
 
@@ -88,6 +55,7 @@ Respond in strict JSON:
       verification: aiResult,
       bountyAmount: amount,
       cleanerPhone,
+      locationUpdated,
       mpesaResult,
       resolvedAt: new Date().toISOString(),
     });

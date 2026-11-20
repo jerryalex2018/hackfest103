@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocations } from "@/hooks/useLocations";
@@ -10,12 +10,13 @@ import { useStats } from "@/hooks/useStats";
 import FlaggedBadge from "@/components/FlaggedBadge";
 import StatsStrip from "@/components/StatsStrip";
 import type { Location, Report } from "@/lib/types";
-import type { DegradationAnalysisResult } from "@/lib/gemini";
+import type { DegradationAnalysisResult, PredictiveRiskZone } from "@/lib/gemini";
+import { deleteReportFromSupabase } from "@/lib/supabase";
 
 export default function AdminOverviewPage() {
-  const { data: stats, loading: loadingStats } = useStats("/admin/stats");
-  const { data: initialLocations, loading: loadingLocations } = useLocations();
-  const { data: initialReports, loading: loadingReports } = useRecentReports(50);
+  const { data: stats } = useStats("/admin/stats");
+  const { data: initialLocations } = useLocations();
+  const { data: initialReports } = useRecentReports(50);
   const { data: flaggedQueue } = useFlaggedLocations();
 
   // Local state allowing admin to interact and test actions in real-time
@@ -26,15 +27,19 @@ export default function AdminOverviewPage() {
   const [alertNotice, setAlertNotice] = useState<string | null>(null);
 
   // Modal / Feature States
-  const [activeTab, setActiveTab] = useState<"telemetry" | "ai_prompt" | "mpesa" | "sms">("telemetry");
+  const [activeTab, setActiveTab] = useState<"telemetry" | "ai_prompt" | "predictive" | "mpesa" | "sms">("telemetry");
 
   // AI Prompting State
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string>("/images/sample-1.jpg");
+  const [selectedImageUrl] = useState<string>("/images/sample-1.jpg");
   const [customPrompt, setCustomPrompt] = useState<string>(
     "Assess health risks, toxic runoff hazard, and recommended cleanup team size."
   );
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<DegradationAnalysisResult | null>(null);
+
+  // Predictive Risk State
+  const [predictiveZones, setPredictiveZones] = useState<PredictiveRiskZone[]>([]);
+  const [loadingPredictive, setLoadingPredictive] = useState(false);
 
   // M-Pesa STK Push State
   const [mpesaPhone, setMpesaPhone] = useState("0712345678");
@@ -54,6 +59,21 @@ export default function AdminOverviewPage() {
   const currentLocations = locations ?? initialLocations ?? [];
   const currentReports = reports ?? initialReports ?? [];
 
+  useEffect(() => {
+    if (activeTab === "predictive" && predictiveZones.length === 0) {
+      setLoadingPredictive(true);
+      fetch("/api/ai/predictive-risk")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.predictions) {
+            setPredictiveZones(data.predictions);
+          }
+        })
+        .catch((err) => console.warn("Predictive risk load error:", err))
+        .finally(() => setLoadingPredictive(false));
+    }
+  }, [activeTab, predictiveZones.length]);
+
   const handleStatusChange = (locId: number, newStatus: "open" | "flagged" | "resolved") => {
     const updated = currentLocations.map((loc) =>
       loc.id === locId
@@ -67,6 +87,18 @@ export default function AdminOverviewPage() {
     setLocations(updated);
     setAlertNotice(`Status for Location #${locId} updated to "${newStatus.toUpperCase()}".`);
     setTimeout(() => setAlertNotice(null), 4000);
+  };
+
+  const handleDeleteReport = async (repId: number) => {
+    try {
+      await deleteReportFromSupabase(repId);
+      const updated = currentReports.filter((r) => r.id !== repId);
+      setReports(updated);
+      setAlertNotice(`Report #${repId} deleted successfully.`);
+      setTimeout(() => setAlertNotice(null), 4000);
+    } catch {
+      setAlertNotice(`Failed to delete report #${repId}.`);
+    }
   };
 
   // Run AI Prompting
@@ -112,21 +144,21 @@ export default function AdminOverviewPage() {
       if (data.success) {
         setMpesaStatus(
           `✓ STK Push sent to ${mpesaPhone}! Checkout ID: ${
-            data.result.CheckoutRequestID || "CO_REQ_99"
+            data.result?.CheckoutRequestID || "CO_REQ_99"
           }`
         );
       } else {
         setMpesaStatus(`Error: ${data.error || "STK Push failed"}`);
       }
     } catch {
-      setMpesaStatus("Network error triggering M-Pesa STK Push.");
+      setMpesaStatus("Failed to send M-Pesa push");
     } finally {
       setMpesaLoading(false);
     }
   };
 
-  // Run Textbee SMS Dispatch
-  const triggerSms = async () => {
+  // Run Textbee SMS
+  const triggerSms = async (phoneToUse?: string, msgToUse?: string) => {
     setSmsLoading(true);
     setSmsStatus(null);
     try {
@@ -134,68 +166,71 @@ export default function AdminOverviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipients: [smsPhone],
-          message: smsMessage,
+          recipients: [phoneToUse || smsPhone],
+          message: msgToUse || smsMessage,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setSmsStatus(`✓ Textbee SMS successfully dispatched to ${smsPhone}!`);
+        setSmsStatus("✓ SMS successfully sent via Textbee Gateway!");
       } else {
-        setSmsStatus(`Error: ${data.error || "SMS sending failed"}`);
+        setSmsStatus(`Error: ${data.error || "SMS failed"}`);
       }
     } catch {
-      setSmsStatus("Network error dispatching SMS via Textbee.");
+      setSmsStatus("Failed to send SMS");
     } finally {
       setSmsLoading(false);
     }
   };
 
-  // Filtered lists
-  const filteredLocations = currentLocations.filter((loc) => {
-    const matchesFilter = filter === "all" ? true : loc.status === filter;
+  const filteredLocations = currentLocations.filter((l) => {
+    const matchesFilter = filter === "all" ? true : l.status === filter;
     const matchesSearch =
       search === "" ||
-      loc.id.toString().includes(search) ||
-      loc.latitude.toString().includes(search) ||
-      loc.longitude.toString().includes(search);
+      l.id.toString().includes(search) ||
+      l.latitude.toString().includes(search) ||
+      l.longitude.toString().includes(search);
     return matchesFilter && matchesSearch;
   });
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
+    <div className="space-y-8 animate-fade-in pb-16">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Control Room <span className="text-brand-green">Overview</span>
+          <div className="flex items-center gap-2">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Operations Center
+            </span>
+          </div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
+            Command & Enforcement Hub
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Real-time silentsignals telemetry, GPS patrols, Gemini AI analysis, and M-Pesa bounties.
+            Real-time field telemetry, Gemini AI visual intelligence, M-Pesa bounties, and civic dispatch.
+          
           </p>
         </div>
 
+        {/* Global Action Toolbar */}
         <div className="flex items-center gap-2">
           <Link
             href="/tracking"
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-blue px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition"
+            className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-slate-800 transition"
           >
-            <span>🛰 Live GPS Patrol</span>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-200 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-            </span>
+            <span>🛰 Live GPS Patrol Track</span>
           </Link>
           <Link
-            href="/admin/locations"
-            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+            href="/map"
+            className="flex items-center gap-2 rounded-xl bg-brand-green px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-700 transition"
           >
-            Manage Locations →
+            <span>🗺 View Incident Map</span>
           </Link>
         </div>
       </div>
 
-      {/* Alert toast notification */}
+      {/* Active Alert Banner */}
       {alertNotice && (
         <div className="rounded-xl bg-brand-green/10 border border-brand-green/30 p-4 text-brand-green flex items-center justify-between animate-fade-in shadow-xs">
           <div className="flex items-center gap-2 text-sm font-medium">
@@ -255,6 +290,18 @@ export default function AdminOverviewPage() {
           }`}
         >
           <span>✨ Gemini AI Prompting</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("predictive")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition ${
+            activeTab === "predictive"
+              ? "bg-white border-t-2 border-l border-r border-slate-200 text-amber-600 border-t-amber-500 shadow-xs"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <span>🔥 72h Predictive Risk</span>
+          <span className="rounded-full bg-red-600 px-1.5 py-0.2 text-[9px] text-white">AI</span>
         </button>
 
         <button
@@ -349,83 +396,245 @@ export default function AdminOverviewPage() {
                               onClick={() => handleStatusChange(loc.id, "open")}
                               className="rounded-lg bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-300"
                             >
-                              Reopen
+                              Re-open
                             </button>
                           )}
                           <Link
                             href={`/flagged/${loc.id}`}
-                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                           >
-                            Details
+                            Details →
                           </Link>
                         </div>
                       </td>
                     </tr>
                   ))}
+                  {filteredLocations.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-xs text-slate-400">
+                        No locations matching filter.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* SLA Escalation Queue */}
+          {flaggedQueue && flaggedQueue.length > 0 && (
+            <div className="rounded-2xl border border-red-200 bg-red-50/50 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-red-600 font-bold">⚠️</span>
+                  <h3 className="text-sm font-bold text-red-900 uppercase tracking-wider">
+                    SLA Escalation Queue ({flaggedQueue.length} Flagged Sites)
+                  </h3>
+                </div>
+                <span className="text-xs text-red-700 font-medium">48h Government Response Clock Active</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {flaggedQueue.slice(0, 3).map((fl) => (
+                  <div key={fl.id} className="rounded-xl border border-red-200 bg-white p-3 shadow-xs">
+                    <p className="font-bold text-slate-900 text-xs">Site #{fl.id}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {fl.unique_reporters} citizen reports · Flagged for urgent dispatch
+                    </p>
+                    <Link
+                      href={`/flagged/${fl.id}`}
+                      className="mt-2 inline-block text-xs font-bold text-red-600 hover:underline"
+                    >
+                      Audit & Disburse Bounty →
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Live Ingest Feed */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+            <h2 className="text-lg font-bold text-slate-900">📸 Recent Citizen Photographic Evidence</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              {currentReports.slice(0, 6).map((rep) => (
+                <div key={rep.id} className="space-y-1 group">
+                  <div className="relative h-28 w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                    <Image
+                      src={rep.image_url || "/images/sample-1.jpg"}
+                      alt="Report evidence"
+                      fill
+                      unoptimized={rep.image_url?.startsWith("data:")}
+                      className="object-cover group-hover:scale-105 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteReport(rep.id)}
+                      title="Delete this image report"
+                      className="absolute top-1 right-1 z-10 rounded-full bg-black/60 p-1 text-[10px] text-white hover:bg-red-600 transition shadow-xs"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-800 truncate">
+                    {rep.category || "General Debris"}
+                  </p>
+                  <p className="text-[10px] text-slate-400">By {rep.reporter_name}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 2: GEMINI AI PROMPTS */}
+      {/* TAB 2: AI PROMPTING */}
       {activeTab === "ai_prompt" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-fade-in space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">✨ Gemini Multimodal AI Prompting</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-fade-in space-y-6">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">✨ Gemini 3.8 Flash Vision Inspector</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Interact directly with Gemini Vision on degradation imagery to generate hazard scores, action plans, and SMS drafts.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <label className="block text-xs font-bold uppercase text-slate-600">Select Image</label>
-              <div className="flex gap-2">
-                {["/images/sample-1.jpg", "/images/sample-2.jpg", "/images/sample-3.jpg"].map(
-                  (img) => (
-                    <button
-                      key={img}
-                      type="button"
-                      onClick={() => setSelectedImageUrl(img)}
-                      className={`relative h-16 w-16 overflow-hidden rounded-xl border-2 ${
-                        selectedImageUrl === img ? "border-brand-blue" : "border-slate-200 opacity-60"
-                      }`}
-                    >
-                      <Image src={img} alt="Sample" fill className="object-cover" />
-                    </button>
-                  )
-                )}
-              </div>
+              <label className="block text-xs font-bold uppercase text-slate-500">
+                Custom Environmental Inspection Prompt
+              </label>
               <textarea
-                rows={3}
+                rows={4}
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-800"
+                className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-800 focus:border-brand-blue focus:outline-none"
               />
               <button
                 type="button"
                 onClick={runAiAnalysis}
                 disabled={aiAnalyzing}
-                className="w-full rounded-xl bg-brand-blue py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+                className="w-full rounded-xl bg-brand-blue py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition shadow-md"
               >
-                {aiAnalyzing ? "Analyzing with Gemini..." : "Run AI Prompt Analysis"}
+                {aiAnalyzing ? "Analyzing with Gemini Vision..." : "🚀 Run Gemini AI Analysis"}
               </button>
             </div>
+
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
               {aiResult ? (
-                <div className="space-y-2">
-                  <p className="font-bold text-slate-900">Category: {aiResult.category}</p>
+                <div className="space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 text-sm">{aiResult.category}</span>
+                    <span className="rounded-full bg-orange-100 text-orange-800 px-2 py-0.5 font-bold uppercase text-[10px]">
+                      {aiResult.severity} · Hazard: {aiResult.hazardScore}/10
+                    </span>
+                  </div>
                   <p className="text-slate-700">{aiResult.description}</p>
-                  <p className="text-brand-green font-semibold">Action: {aiResult.recommendedAction}</p>
-                  <p className="font-mono text-slate-600 bg-white p-2 rounded border border-slate-200">
-                    SMS Draft: {aiResult.authorityEscalationSummary}
+                  <p className="text-brand-green font-semibold">
+                    <span className="text-slate-500">Recommended Action: </span>
+                    {aiResult.recommendedAction}
                   </p>
+                  <div className="rounded-lg bg-white p-2.5 border border-slate-200 mt-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">
+                      Generated SMS Authority Escalation:
+                    </span>
+                    <p className="font-mono text-slate-800 text-[11px]">{aiResult.authorityEscalationSummary}</p>
+                  </div>
                 </div>
               ) : (
-                <p className="text-slate-400 text-center py-10">Click Run AI Prompt Analysis to test</p>
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                  <span className="text-3xl mb-2">🤖</span>
+                  <p>Click Run Gemini AI Analysis to trigger live multimodal inspection.</p>
+                </div>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 3: M-PESA BOUNTIES */}
+      {/* TAB 3: 72H PREDICTIVE RISK */}
+      {activeTab === "predictive" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-fade-in space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-amber-500 text-lg">🔥</span>
+                <h2 className="text-lg font-bold text-slate-900">
+                  72-Hour Predictive Dumping Risk & Preventive Routing
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Gemini 3.8 Flash temporal clustering forecasts high-risk dumping windows to intercept waste BEFORE it hits storm drains.
+              </p>
+            </div>
+            <Link
+              href="/map"
+              className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-900 hover:bg-amber-400 shadow-xs"
+            >
+              View on Heatmap →
+            </Link>
+          </div>
+
+          {loadingPredictive ? (
+            <p className="text-xs text-slate-500 animate-pulse py-8 text-center">
+              Gemini AI calculating 72-hour accumulation probabilities across municipal coordinates...
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {predictiveZones.map((zone) => (
+                <div
+                  key={zone.id}
+                  className="rounded-2xl border border-slate-200 p-4 space-y-3 bg-slate-50/50 hover:bg-white hover:shadow-md transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 text-sm">{zone.locationName}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${
+                        zone.riskLevel === "critical"
+                          ? "bg-red-100 text-red-700"
+                          : zone.riskLevel === "high"
+                          ? "bg-orange-100 text-orange-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {zone.riskLevel} ({zone.riskScore}%)
+                    </span>
+                  </div>
+
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <p>
+                      <span className="font-semibold text-slate-700">Peak Dumping Window:</span>{" "}
+                      {zone.peakWindow}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-slate-700">Expected Waste:</span>{" "}
+                      {zone.predictedWasteType}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-white p-2.5 border border-slate-200 text-xs text-slate-700">
+                    <span className="font-bold text-brand-green">Intervention: </span>
+                    {zone.recommendedAction}
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 italic">{zone.forecastSummary}</p>
+
+                  <button
+                    onClick={() =>
+                      triggerSms(
+                        "+254712345678",
+                        `PREDICTIVE PATROL ALERT: ${zone.locationName} flagged at ${zone.riskScore}% risk for ${zone.predictedWasteType}. Recommended: ${zone.recommendedAction}`
+                      )
+                    }
+                    className="w-full rounded-xl bg-slate-900 py-2 text-xs font-bold text-white hover:bg-slate-800 transition"
+                  >
+                    🚨 Alert Patrol Unit
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 4: M-PESA BOUNTIES */}
       {activeTab === "mpesa" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-fade-in space-y-4">
           <h2 className="text-lg font-bold text-slate-900">💳 Safaricom M-Pesa Daraja STK Push</h2>
@@ -457,7 +666,7 @@ export default function AdminOverviewPage() {
         </div>
       )}
 
-      {/* TAB 4: TEXTBEE SMS */}
+      {/* TAB 5: TEXTBEE SMS */}
       {activeTab === "sms" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs animate-fade-in space-y-4">
           <h2 className="text-lg font-bold text-slate-900">📱 Textbee SMS Gateway Dispatch</h2>
@@ -477,7 +686,7 @@ export default function AdminOverviewPage() {
             />
             <button
               type="button"
-              onClick={triggerSms}
+              onClick={() => triggerSms()}
               disabled={smsLoading}
               className="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
             >
