@@ -11,6 +11,7 @@ import FlaggedBadge from "@/components/FlaggedBadge";
 import StatsStrip from "@/components/StatsStrip";
 import type { Location, Report } from "@/lib/types";
 import type { DegradationAnalysisResult, PredictiveRiskZone } from "@/lib/gemini";
+import { deleteReportFromSupabase } from "@/lib/supabase";
 
 export default function AdminOverviewPage() {
   const { data: stats } = useStats("/admin/stats");
@@ -20,7 +21,7 @@ export default function AdminOverviewPage() {
 
   // Local state allowing admin to interact and test actions in real-time
   const [locations, setLocations] = useState<Location[] | null>(null);
-  const [reports] = useState<Report[] | null>(null);
+  const [reports, setReports] = useState<Report[] | null>(null);
   const [filter, setFilter] = useState<"all" | "flagged" | "open" | "resolved">("all");
   const [search, setSearch] = useState("");
   const [alertNotice, setAlertNotice] = useState<string | null>(null);
@@ -86,6 +87,18 @@ export default function AdminOverviewPage() {
     setLocations(updated);
     setAlertNotice(`Status for Location #${locId} updated to "${newStatus.toUpperCase()}".`);
     setTimeout(() => setAlertNotice(null), 4000);
+  };
+
+  const handleDeleteReport = async (repId: number) => {
+    try {
+      await deleteReportFromSupabase(repId);
+      const updated = currentReports.filter((r) => r.id !== repId);
+      setReports(updated);
+      setAlertNotice(`Report #${repId} deleted successfully.`);
+      setTimeout(() => setAlertNotice(null), 4000);
+    } catch {
+      setAlertNotice(`Failed to delete report #${repId}.`);
+    }
   };
 
   // Run AI Prompting
@@ -452,6 +465,14 @@ export default function AdminOverviewPage() {
                       unoptimized={rep.image_url?.startsWith("data:")}
                       className="object-cover group-hover:scale-105 transition"
                     />
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteReport(rep.id)}
+                      title="Delete this image report"
+                      className="absolute top-1 right-1 z-10 rounded-full bg-black/60 p-1 text-[10px] text-white hover:bg-red-600 transition shadow-xs"
+                    >
+                      🗑️
+                    </button>
                   </div>
                   <p className="text-[11px] font-bold text-slate-800 truncate">
                     {rep.category || "General Debris"}

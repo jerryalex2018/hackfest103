@@ -292,3 +292,52 @@ export async function insertReportToSupabase(
     location: (updatedLoc || matchedLoc) as Location,
   };
 }
+
+export async function deleteReportFromSupabase(reportId: number): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    // 1. Get the report to find its location_id
+    const { data: report } = await supabase
+      .from("reports")
+      .select("location_id")
+      .eq("id", reportId)
+      .single();
+
+    // 2. Delete the report
+    const { error } = await supabase
+      .from("reports")
+      .delete()
+      .eq("id", reportId);
+
+    if (error) {
+      console.error("Error deleting report from Supabase:", error);
+      return false;
+    }
+
+    // 3. Update the associated location stats if it exists
+    if (report?.location_id) {
+      const { data: remainingReports } = await supabase
+        .from("reports")
+        .select("id, reporter_name")
+        .eq("location_id", report.location_id);
+
+      const count = remainingReports?.length || 0;
+      const uniqueReporters = new Set(remainingReports?.map((r) => r.reporter_name) || []).size;
+
+      await supabase
+        .from("locations")
+        .update({
+          report_count: count,
+          unique_reporters: uniqueReporters,
+          status: count >= 10 ? "flagged" : "open",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", report.location_id);
+    }
+
+    return true;
+  } catch (err) {
+    console.error("deleteReportFromSupabase error:", err);
+    return false;
+  }
+}
