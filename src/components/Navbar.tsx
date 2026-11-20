@@ -3,14 +3,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import logo from "../app/logo.jpeg"; // 👈 Importing the image from the app folder
+import logo from "../app/logo.jpeg";
 
 const links = [
   { href: "/", label: "Home" },
   { href: "/report", label: "Report" },
   { href: "/map", label: "Map" },
+  { href: "/tracking", label: "GPS Patrol", badge: "Live" },
   { href: "/recent", label: "Recent" },
   { href: "/flagged", label: "Flagged" },
+  { href: "/admin", label: "Admin Ops", badge: "New" },
   { href: "/about", label: "About" },
 ];
 
@@ -22,16 +24,15 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-brand-green/20 bg-brand-white/95 backdrop-blur">
-      <nav className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        
+      <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2.5">
         {/* Logo Section */}
-        <Link href="/" className="flex items-center">
+        <Link href="/" className="flex items-center gap-2">
           <Image
             src={logo}
-            alt="Silent Signals Logo"
-            width={200} 
-            height={100} 
-            className="h-10 w-auto object-contain md:h-12"
+            alt="Degradation Watch Logo"
+            width={180}
+            height={60}
+            className="h-9 w-auto object-contain md:h-11"
             priority
           />
         </Link>
@@ -41,13 +42,24 @@ export default function Navbar() {
             <li key={link.href} className="shrink-0">
               <Link
                 href={link.href}
-                className={`block whitespace-nowrap rounded-full px-3 py-2 transition-colors ${
+                className={`relative inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 transition-colors ${
                   isActive(link.href)
                     ? "bg-brand-green text-brand-white"
                     : "text-slate-700 hover:bg-brand-blue/10 hover:text-brand-blue"
                 }`}
               >
-                {link.label}
+                <span>{link.label}</span>
+                {link.badge && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                      isActive(link.href)
+                        ? "bg-white text-brand-green"
+                        : "bg-brand-blue/15 text-brand-blue"
+                    }`}
+                  >
+                    {link.badge}
+                  </span>
+                )}
               </Link>
             </li>
           ))}
@@ -62,7 +74,7 @@ export default function Navbar() {
           </Link>
           <Link
             href="/register"
-            className="rounded-full bg-brand-blue px-4 py-2 text-brand-white transition-opacity hover:opacity-90"
+            className="rounded-full bg-brand-blue px-4 py-2 text-brand-white transition-opacity hover:opacity-90 shadow-2xs"
           >
             Sign up
           </Link>

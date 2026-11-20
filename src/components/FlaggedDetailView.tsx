@@ -3,6 +3,8 @@
 import Link from "next/link";
 import FlaggedBadge from "@/components/FlaggedBadge";
 import PhotoCard from "@/components/PhotoCard";
+import SlaCountdown from "@/components/SlaCountdown";
+import ProofOfCleanupModal from "@/components/ProofOfCleanupModal";
 import { useLocation } from "@/hooks/useLocation";
 
 export default function FlaggedDetailView({ id }: { id: string }) {
@@ -10,12 +12,21 @@ export default function FlaggedDetailView({ id }: { id: string }) {
 
   return (
     <section className="mx-auto max-w-6xl space-y-8 px-4 py-10 animate-fade-in">
-      <Link
-        href="/flagged"
-        className="text-sm font-semibold text-brand-blue hover:underline"
-      >
-        ← Back to flagged spots
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/flagged"
+          className="text-sm font-semibold text-brand-blue hover:underline"
+        >
+          ← Back to flagged spots
+        </Link>
+
+        {data && (
+          <ProofOfCleanupModal
+            locationId={data.location.id}
+            beforeImageUrl={data.reports[0]?.image_url || "/images/sample-1.jpg"}
+          />
+        )}
+      </div>
 
       {loading && (
         <p className="animate-pulse text-slate-500">Loading location...</p>
@@ -52,13 +63,31 @@ export default function FlaggedDetailView({ id }: { id: string }) {
                 </p>
               )}
             </div>
-            <FlaggedBadge status={data.location.status} />
+            <div className="flex flex-col items-end gap-3">
+              <FlaggedBadge status={data.location.status} />
+              <ProofOfCleanupModal
+                locationId={data.location.id}
+                beforeImageUrl={data.reports[0]?.image_url || "/images/sample-1.jpg"}
+              />
+            </div>
           </div>
 
+          {/* 48-Hour Government SLA Escalation Timer */}
+          <SlaCountdown
+            flaggedAt={data.location.flagged_at}
+            locationId={data.location.id}
+            slaHours={48}
+          />
+
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-brand-green">
-              Photos from this spot
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-brand-green">
+                Photos from this spot
+              </h2>
+              <span className="text-xs text-slate-500">
+                {data.reports.length} verified submissions
+              </span>
+            </div>
 
             {data.reports.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-brand-blue/40 p-10 text-center">
