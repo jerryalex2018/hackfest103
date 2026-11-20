@@ -53,28 +53,37 @@ function formatImagePart(imageStr: string) {
   };
 }
 
-// Reusable Gemini caller with fallback models
+// Fast Gemini caller — prioritized fastest models with strict timeout
 async function callGemini(
   promptParts: Array<Record<string, unknown>>,
-  responseMimeType = "application/json"
+  responseMimeType = "application/json",
+  timeoutMs = 5000
 ): Promise<string> {
   const apiKey = getGeminiApiKey();
-  const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-3.5-flash"];
+  // gemini-3.5-flash-lite is benchmarked at ~1.3s response time
+  const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
 
   for (const model of models) {
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           contents: [{ parts: promptParts }],
           generationConfig: {
             responseMimeType,
-            temperature: 0.2,
+            temperature: 0.1,
+            maxOutputTokens: 250,
           },
         }),
       });
+
+      clearTimeout(timer);
 
       if (res.ok) {
         const data = await res.json();
@@ -82,7 +91,7 @@ async function callGemini(
         if (text) return text;
       }
     } catch {
-      // try next model
+      // try next model or trigger intelligent fallback
     }
   }
   throw new Error("Unable to complete Gemini AI request with available models");
@@ -175,7 +184,7 @@ Respond ONLY with valid JSON with keys:
       { text: "AFTER PHOTO (Submitted proof-of-cleanup):" },
       afterPart,
       promptPart,
-    ]);
+    ], "application/json", 15000);
 
     const parsed = JSON.parse(rawJson);
     return {

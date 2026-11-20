@@ -170,7 +170,7 @@ export async function fileToBase64Optimized(file: File): Promise<string> {
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const MAX_DIM = 1200;
+        const MAX_DIM = 640;
         let width = img.width;
         let height = img.height;
         if (width > height && width > MAX_DIM) {
@@ -187,7 +187,7 @@ export async function fileToBase64Optimized(file: File): Promise<string> {
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.8));
+          resolve(canvas.toDataURL("image/jpeg", 0.5));
         } else {
           resolve((e.target?.result as string) || "/images/sample-1.jpg");
         }

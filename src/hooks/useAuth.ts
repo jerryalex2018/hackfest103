@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPost } from "@/lib/api";
 import { clearSession, saveSession } from "@/lib/auth";
 import { USE_MOCKS } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
@@ -130,6 +129,18 @@ export function useAuth() {
     }
   }
 
+  function loginAsDemo(role: "citizen" | "admin" = "citizen") {
+    const isAdm = role === "admin";
+    const demoUser: User = {
+      id: isAdm ? 2 : 1,
+      name: isAdm ? "Admin Officer (NEMA)" : "Citizen Reporter",
+      email: isAdm ? "admin@degradationwatch.org" : "citizen@degradationwatch.org",
+      role,
+    };
+    saveSession("demo-session-token", demoUser);
+    router.push(isAdm ? "/admin" : "/report");
+  }
+
   async function logout() {
     try {
       if (supabase) {
@@ -143,5 +154,5 @@ export function useAuth() {
     }
   }
 
-  return { login, register, logout, loading, error };
+  return { login, register, logout, loginAsDemo, loading, error };
 }
