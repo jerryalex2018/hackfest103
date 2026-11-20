@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { apiPatch } from "@/lib/api";
 import { USE_MOCKS } from "@/lib/config";
+import { updateLocationStatusInSupabase } from "@/lib/supabase";
 import type { LocationStatus } from "@/lib/types";
 
 export function useUpdateLocationStatus() {
@@ -18,9 +19,13 @@ export function useUpdateLocationStatus() {
     try {
       if (USE_MOCKS) {
         await new Promise((r) => setTimeout(r, 400));
-      } else {
-        await apiPatch(`/admin/locations/${id}`, { status });
+        return true;
       }
+
+      const sbSuccess = await updateLocationStatusInSupabase(id, status);
+      if (sbSuccess) return true;
+
+      await apiPatch(`/admin/locations/${id}`, { status });
       return true;
     } catch (e) {
       setError((e as Error).message);

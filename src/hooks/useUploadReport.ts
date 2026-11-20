@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { apiPost } from "@/lib/api";
 import { USE_MOCKS } from "@/lib/config";
+import { insertReportToSupabase } from "@/lib/supabase";
 import type { Location, Report } from "@/lib/types";
 
 type UploadResponse = { report: Report; location: Location };
@@ -41,6 +42,13 @@ export function useUploadReport() {
           },
         });
       } else {
+        // First try inserting directly into Supabase
+        const sbResult = await insertReportToSupabase(form).catch(() => null);
+        if (sbResult) {
+          setResult(sbResult);
+          return;
+        }
+
         const data = await apiPost<UploadResponse>("/reports", form);
         setResult(data);
       }
