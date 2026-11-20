@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getUser } from "./auth";
 import type { Location, Report, Authority, LocationDetail } from "./types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -117,13 +118,35 @@ export async function updateLocationStatusInSupabase(
   return !error;
 }
 
+// Helper to convert an uploaded File to a Base64 data URL
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+}
+
 export async function insertReportToSupabase(form: FormData): Promise<{ report: Report; location: Location } | null> {
   if (!supabase) return null;
 
   const lat = Number(form.get("latitude"));
   const lng = Number(form.get("longitude"));
   const description = (form.get("description") as string) || null;
-  const reporterName = "Citizen Contributor";
+  const currentUser = getUser();
+  const reporterName = currentUser?.name || "Citizen Reporter";
+
+  // Process uploaded photo
+  let imageUrl = "/images/sample-1.jpg";
+  const photoFile = form.get("photo") as File | null;
+  if (photoFile && photoFile.size > 0 && typeof window !== "undefined") {
+    try {
+      imageUrl = await fileToBase64(photoFile);
+    } catch {
+      imageUrl = "/images/sample-1.jpg";
+    }
+  }
 
   // Check if a location already exists nearby (~0.0003 deg is roughly 30m)
   const { data: existingLocations } = await supabase
@@ -155,7 +178,6 @@ export async function insertReportToSupabase(form: FormData): Promise<{ report: 
   }
 
   // Insert the report
-  const imageUrl = "/images/sample-1.jpg"; // Default sample or Supabase storage path
   const { data: newReport, error: repErr } = await supabase
     .from("reports")
     .insert({
@@ -171,8 +193,15 @@ export async function insertReportToSupabase(form: FormData): Promise<{ report: 
 
   if (repErr || !newReport) throw new Error(repErr?.message || "Failed to submit report");
 
+  // Fetch updated location to get the latest unique_reporters and status from the DB trigger
+  const { data: updatedLoc } = await supabase
+    .from("locations")
+    .select("*")
+    .eq("id", matchedLoc.id)
+    .single();
+
   return {
     report: newReport as Report,
-    location: matchedLoc as Location,
+    location: (updatedLoc || matchedLoc) as Location,
   };
 }

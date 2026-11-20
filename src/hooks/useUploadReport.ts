@@ -42,13 +42,14 @@ export function useUploadReport() {
           },
         });
       } else {
-        // First try inserting directly into Supabase
-        const sbResult = await insertReportToSupabase(form).catch(() => null);
+        // Direct Supabase insert
+        const sbResult = await insertReportToSupabase(form);
         if (sbResult) {
           setResult(sbResult);
           return;
         }
 
+        // Fallback to Express backend if Supabase is not configured
         const data = await apiPost<UploadResponse>("/reports", form);
         setResult(data);
       }
