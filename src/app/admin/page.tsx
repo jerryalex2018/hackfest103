@@ -104,7 +104,7 @@ export default function AdminOverviewPage() {
         body: JSON.stringify({
           phoneNumber: mpesaPhone,
           amount: mpesaAmount,
-          accountReference: "DegradationWatch",
+          accountReference: "Silent Signals",
           transactionDesc: "Citizen Cleanup Bounty",
         }),
       });
@@ -171,7 +171,7 @@ export default function AdminOverviewPage() {
             Control Room <span className="text-brand-green">Overview</span>
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Real-time degradation telemetry, GPS patrols, Gemini AI analysis, and M-Pesa bounties.
+            Real-time silentsignals telemetry, GPS patrols, Gemini AI analysis, and M-Pesa bounties.
           </p>
         </div>
 

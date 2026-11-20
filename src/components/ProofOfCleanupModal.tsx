@@ -97,7 +97,7 @@ export default function ProofOfCleanupModal({
               {/* Before */}
               <div className="space-y-2">
                 <span className="inline-block rounded-md bg-red-100 px-2 py-0.5 text-xs font-bold uppercase text-red-700">
-                  Before (Reported Degradation)
+                  Before (Reported silentsignals Evidence)
                 </span>
                 <div className="relative h-44 w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                   <Image

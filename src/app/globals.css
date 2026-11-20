@@ -1,15 +1,26 @@
 @import "tailwindcss";
 
 @theme {
+  /* Base Brand Colors */
   --color-brand-green: #16a34a;
   --color-brand-blue: #2563eb;
   --color-brand-white: #ffffff;
+
+  /* Added: Brand Variations for hover states and backgrounds */
+  --color-brand-green-light: #dcfce7;
+  --color-brand-green-dark: #15803d;
+  --color-brand-blue-light: #dbeafe;
+  --color-brand-blue-dark: #1d4ed8;
+
+  /* Added: Semantic Colors */
+  --color-brand-danger: #ef4444;
+  --color-brand-warning: #f59e0b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -18,6 +29,7 @@
   --foreground: #171717;
 }
 
+/* Base Styles */
 html {
   scroll-behavior: smooth;
 }
@@ -25,8 +37,46 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Added: Better Typography for headings */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  letter-spacing: -0.025em; /* Slight tightening for modern look */
+}
+
+/* Added: Custom Text Selection */
+::selection {
+  background-color: var(--color-brand-blue);
+  color: var(--color-brand-white);
+}
+
+/* Added: Sleek Custom Scrollbar (Webkit browsers) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1; /* slate-300 */
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8; /* slate-400 */
+}
+
+/* Added: Accessible focus states for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--color-brand-blue);
+  outline-offset: 2px;
+}
+
+/* --- Animations --- */
 
 /* Fade-in animation for photo cards and page content */
 @keyframes fade-in {
@@ -42,6 +92,50 @@ body {
 
 .animate-fade-in {
   animation: fade-in 0.4s ease-out both;
+}
+
+/* Added: Slide up animation (great for modals or toasts) */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Added: Shimmer animation for skeleton loaders */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.animate-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 2s infinite;
 }
 
 /* Pulsing ring for flagged locations */
@@ -61,6 +155,24 @@ body {
   animation: pulse-ring 2s infinite;
 }
 
+/* --- Utilities --- */
+
+@utility page-container {
+  width: 100%;
+  max-width: 96rem;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 3vw, 3rem);
+}
+
+/* Added: Reusable Glassmorphism effect */
+@utility glass {
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* --- Accessibility --- */
+
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -68,8 +180,10 @@ body {
   }
 
   .animate-fade-in,
+  .animate-slide-up,
+  .animate-shimmer,
   .animate-pulse-ring {
-    animation: none;
+    animation: none !important;
   }
 }
 
@@ -81,11 +195,4 @@ body {
   button {
     min-height: 44px;
   }
-}
-
-@utility page-container {
-  width: 100%;
-  max-width: 96rem;
-  margin-inline: auto;
-  padding-inline: clamp(1rem, 3vw, 3rem);
 }

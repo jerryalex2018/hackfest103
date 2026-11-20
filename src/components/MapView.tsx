@@ -74,7 +74,7 @@ export default function MapView({ locations }: { locations: Location[] }) {
           </span>
           <p className="text-sm font-semibold">
             {viewMode === "standard"
-              ? "Verified Citizen Degradation Reports"
+              ? "Verified Citizen silent Reports"
               : "🔥 72-Hour AI Predictive Dumping Risk Forecast"}
           </p>
         </div>
