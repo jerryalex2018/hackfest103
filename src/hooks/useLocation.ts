@@ -1,6 +1,5 @@
 "use client";
 
-import { apiGet } from "@/lib/api";
 import { USE_MOCKS } from "@/lib/config";
 import { mockLocations, mockReports } from "@/lib/mockData";
 import { fetchLocationDetailFromSupabase } from "@/lib/supabase";
@@ -19,6 +18,13 @@ export function useLocation(id: string) {
     const sbDetail = await fetchLocationDetailFromSupabase(id);
     if (sbDetail) return sbDetail;
 
-    return apiGet<LocationDetail>(`/locations/${id}`);
+    const fallbackLoc = mockLocations.find((l) => l.id === Number(id));
+    if (fallbackLoc) {
+      return {
+        location: fallbackLoc,
+        reports: mockReports.filter((r) => r.location_id === fallbackLoc.id),
+      };
+    }
+    throw new Error("Location not found");
   }, [id]);
 }

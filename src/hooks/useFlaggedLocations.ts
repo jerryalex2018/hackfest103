@@ -1,6 +1,5 @@
 "use client";
 
-import { apiGet } from "@/lib/api";
 import { USE_MOCKS } from "@/lib/config";
 import { mockLocations } from "@/lib/mockData";
 import { fetchFlaggedLocationsFromSupabase } from "@/lib/supabase";
@@ -12,8 +11,8 @@ export function useFlaggedLocations() {
     async () => {
       if (USE_MOCKS) return mockLocations.filter((l) => l.status === "flagged");
       const sbData = await fetchFlaggedLocationsFromSupabase();
-      if (sbData && sbData.length > 0) return sbData;
-      return apiGet<Location[]>("/locations/flagged");
+      if (sbData !== null) return sbData;
+      return mockLocations.filter((l) => l.status === "flagged");
     },
     [],
   );

@@ -5,3 +5,5 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 NEXT_PUBLIC_USE_MOCKS = "false"
+NEXT_PUBLIC_SUPABASE_URL = "https://wdprlvmhwfngnucaryev.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkcHJsdm1od2ZuZ251Y2FyeWV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxMzA1MTAsImV4cCI6MjExMDcwNjUxMH0._6PsqFJZ1fWiLQbKW_Hp0piQUJbhXoHhDv0jvf-Gquo"

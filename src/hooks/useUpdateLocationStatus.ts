@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { apiPatch } from "@/lib/api";
 import { USE_MOCKS } from "@/lib/config";
 import { updateLocationStatusInSupabase } from "@/lib/supabase";
 import type { LocationStatus } from "@/lib/types";
@@ -24,9 +23,7 @@ export function useUpdateLocationStatus() {
 
       const sbSuccess = await updateLocationStatusInSupabase(id, status);
       if (sbSuccess) return true;
-
-      await apiPatch(`/admin/locations/${id}`, { status });
-      return true;
+      throw new Error("Failed to update status in Supabase database");
     } catch (e) {
       setError((e as Error).message);
       return false;
