@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "edge";
+
 const EXPRESS_URL = process.env.EXPRESS_API_URL ?? "http://localhost:4000";
 
 async function proxy(

@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import FlaggedDetailView from "@/components/FlaggedDetailView";
 
+export const runtime = "edge";
+
 type Params = Promise<{ id: string }>;
 
 async function DetailContent({ params }: { params: Params }) {

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { sendTextbeeSms } from "@/lib/textbee";
 
+export const runtime = "edge";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
